@@ -1,0 +1,337 @@
+{
+  "name": "Handwriting_compariso",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "grade",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1184,
+        -160
+      ],
+      "id": "1420641b-d400-4dce-b2e5-a2eb059a0b85",
+      "name": "Webhook",
+      "webhookId": "f6b0a118-0385-4b6e-b6a7-ff9f80942de0"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "answer_key",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        -352
+      ],
+      "id": "931b5e98-aeaf-47b1-addd-8dede5314136",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ANSWER KEY (extracted from PDF):\n{{ $json.text }}\nSTUDENT ANSWER SHEET:\n{{$json.extractedText}}\n\nCompare only the questions answered in the student sheet against the answer key.\nReturn ONLY this JSON, no explanation, no markdown:\n\n{\n  \"total_questions_attempted\": <number>,\n  \"correct\": <number>,\n  \"wrong\": <number>,\n  \"marks_scored\": <number>,\n  \"total_marks\": <number>,\n  \"score_percentage\": <number>,\n  \"results\": [\n    {\n      \"question_number\": 1,\n      \"correct_answer\": \"A\",\n      \"student_answer\": \"A\",\n      \"marks_awarded\": 1,\n      \"is_correct\": true\n    }\n  ]\n}",
+        "options": {
+          "systemMessage": "You are an expert exam grader.\n\nYou will receive:\n1. An answer key PDF text — containing questions and their correct answers\n2. A student answer sheet image\n\nYour grading rules:\n- Extract ONLY the questions that are visible and answered in the student's answer sheet\n- For each such question, find the matching correct answer from the answer key\n- Compare the answer words not the options like (A,B,C,D)\n- Also dont return the options of the answer in the JSON which you will be sending\n- Do not grade questions that are not present in the student's answer sheet"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -176,
+        -176
+      ],
+      "id": "72cc15c5-64f8-4ba5-8d37-b76fe9e9e5f3",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        128
+      ],
+      "id": "d1b52408-83a0-479b-a850-4876690ab2d4",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "rURyWGAkWWcmBV5g",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        400,
+        -160
+      ],
+      "id": "1a6279cc-48df-4dac-9458-ce889a47a4ad",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output;\nconst jsonMatch = output.match(/\\{[\\s\\S]*\\}/);\nconst parsed = JSON.parse(jsonMatch[0]);\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -176
+      ],
+      "id": "7a3f50fb-ac8d-4061-8492-2f259e213ea8",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vision.googleapis.com/v1/images:annotate?key=",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"requests\": [\n    {\n      \"image\": {\n        \"source\": {\n          \"imageUri\": \"{{ $json.secure_url }}\"\n        }\n      },\n      \"features\": [\n        {\n          \"type\": \"DOCUMENT_TEXT_DETECTION\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1120,
+        -784
+      ],
+      "id": "c9a7f772-34dc-4386-bd95-e7350d0e77eb",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleApi": {
+          "id": "WINSsbym6OujEFNS",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "uploadFile",
+        "file": "answer_sheet",
+        "additionalFieldsFile": {}
+      },
+      "type": "n8n-nodes-cloudinary.cloudinary",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        -784
+      ],
+      "id": "5d8be1d3-e0e0-49bb-92a9-5b6e89a2f3c8",
+      "name": "Upload an asset from file data",
+      "credentials": {
+        "cloudinaryApi": {
+          "id": "GxmUeiug4LPcWNou",
+          "name": "Cloudinary account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "binaryProperty": "answer_sheet",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -16
+      ],
+      "id": "2c9a50ff-2052-4909-9104-963b70c684d7",
+      "name": "Extract text",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "6ty0ZwKsIIwUB8tJ",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combineBySql",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -416,
+        -176
+      ],
+      "id": "47f16d76-d559-47cd-90f0-02e145943c13",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "subject": "={{ $('Webhook').item.json.body.email }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -112,
+        -736
+      ],
+      "id": "5c20bb34-f548-4412-bc27-4b2fd5ae1de3",
+      "name": "Send a message",
+      "webhookId": "88459c5f-173a-4abe-b629-ac3b7991f6a1",
+      "credentials": {
+        "googleApi": {
+          "id": "WINSsbym6OujEFNS",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "user",
+        "owner": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -496,
+        -784
+      ],
+      "id": "60c51cc4-d832-4d22-a66e-8c8ba9e6237d",
+      "name": "Get a user's repositories",
+      "webhookId": "279b349b-9574-4a4c-a30f-7b22fc84bd41",
+      "credentials": {
+        "githubApi": {
+          "id": "5nPvMFIpBXtlb2yo",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "Upload an asset from file data": {
+      "main": [
+        []
+      ]
+    },
+    "Extract text": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d65e7f9e-c380-4867-bc8a-31ba6cebe5bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c205de7c87c88039cc72d13a16655b4fc021421874861de867b10335494906d4"
+  },
+  "id": "rRm9swApuLN6IuGU",
+  "tags": []
+}
