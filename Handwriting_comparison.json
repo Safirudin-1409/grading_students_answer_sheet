@@ -36,9 +36,9 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=ANSWER KEY (extracted from PDF):\n{{ $json.text }}\nSTUDENT ANSWER SHEET:\n{{$json.extractedText}}\n\nCompare only the questions answered in the student sheet against the answer key.\nReturn ONLY this JSON, no explanation, no markdown:\n\n{\n  \"total_questions_attempted\": <number>,\n  \"correct\": <number>,\n  \"wrong\": <number>,\n  \"marks_scored\": <number>,\n  \"total_marks\": <number>,\n  \"score_percentage\": <number>,\n  \"results\": [\n    {\n      \"question_number\": 1,\n      \"correct_answer\": \"A\",\n      \"student_answer\": \"A\",\n      \"marks_awarded\": 1,\n      \"is_correct\": true\n    }\n  ]\n}",
+        "text": "=ANSWER KEY (extracted from PDF):\n{{ $json.text }}\n\nSTUDENT ANSWER SHEET:\n{{ $json.extractedText }}\n\nCompare only the questions answered in the student sheet against the answer key.\nReturn ONLY this JSON, no explanation, no markdown, no code fences:\n\n{\n  \"total_questions_attempted\": <number>,\n  \"correct\": <number>,\n  \"wrong\": <number>,\n  \"marks_scored\": <number>,\n  \"total_marks\": <number>,\n  \"score_percentage\": <number>,\n  \"performance_summary\": \"<3-5 sentence summary of student performance>\",\n  \"results\": [\n    {\n      \"question_number\": 1,\n      \"correct_answer\": \"photosynthesis\",\n      \"student_answer\": \"photosynthesis\",\n      \"marks_awarded\": 1,\n      \"is_correct\": true\n    }\n  ]\n}",
         "options": {
-          "systemMessage": "You are an expert exam grader.\n\nYou will receive:\n1. An answer key PDF text — containing questions and their correct answers\n2. A student answer sheet image\n\nYour grading rules:\n- Extract ONLY the questions that are visible and answered in the student's answer sheet\n- For each such question, find the matching correct answer from the answer key\n- Compare the answer words not the options like (A,B,C,D)\n- Also dont return the options of the answer in the JSON which you will be sending\n- Do not grade questions that are not present in the student's answer sheet"
+          "systemMessage": "You are an expert exam grader and academic evaluator.\n\nYou will receive:\n1. An answer key PDF text — containing questions and their correct answers\n2. A student answer sheet image\n\nYour grading rules:\n- Extract ONLY the questions that are visible and answered in the student's answer sheet\n- For each such question, find the matching correct answer from the answer key\n- Compare the answer words, not the option labels (A, B, C, D)\n- Do not include option labels in the JSON output\n- Do not grade questions that are not present in the student's answer sheet\n- After grading, write a brief but thoughtful performance summary for the student\n\nYour summary rules:\n- 3 to 5 sentences maximum\n- Mention the score and percentage clearly\n- Highlight strong areas if the student got consecutive correct answers\n- Point out weak areas based on wrong answers, without being discouraging\n- End with one specific, actionable improvement tip\n- Write in second person (\"You scored...\", \"You showed strength in...\")"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -181,23 +181,24 @@
     },
     {
       "parameters": {
-        "authentication": "serviceAccount",
-        "subject": "={{ $('Webhook').item.json.body.email }}",
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "=Your Exam Results Are Here — {{ $json.marks_scored }}/{{ $json.total_marks }} ({{ $json.score_percentage }}%)",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    * { margin: 0; padding: 0; box-sizing: border-box; }\n    body { background: #f4f4f0; font-family: 'Segoe UI', Arial, sans-serif; padding: 40px 16px; }\n    .wrapper { max-width: 560px; margin: 0 auto; }\n    .card { background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }\n\n    .header { background: #1a1a1e; padding: 36px 32px; text-align: center; }\n    .header-badge { display: inline-block; background: rgba(200,169,110,0.15); color: #c8a96e; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 16px; border-radius: 100px; border: 1px solid rgba(200,169,110,0.3); margin-bottom: 16px; }\n    .header h1 { color: #f0ede8; font-size: 26px; font-weight: 600; margin-bottom: 6px; }\n    .header p { color: #7a7872; font-size: 14px; }\n\n    .score-banner { background: #f9f7f2; border-bottom: 1px solid #eeebe4; padding: 28px 32px; text-align: center; }\n    .score-number { font-size: 52px; font-weight: 700; color: #1a1a1e; line-height: 1; }\n    .score-number span { font-size: 28px; color: #7a7872; font-weight: 400; }\n    .score-pct { font-size: 18px; color: #c8a96e; font-weight: 600; margin-top: 8px; }\n\n    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-bottom: 1px solid #eeebe4; }\n    .metric { padding: 20px 16px; text-align: center; border-right: 1px solid #eeebe4; }\n    .metric:last-child { border-right: none; }\n    .metric-value { font-size: 24px; font-weight: 700; color: #1a1a1e; }\n    .metric-value.green { color: #1d9e75; }\n    .metric-value.red { color: #d85a30; }\n    .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a9890; margin-top: 4px; }\n\n    .body { padding: 28px 32px; }\n    .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #9a9890; margin-bottom: 12px; font-weight: 600; }\n\n    .summary-box { background: #f9f7f2; border-left: 3px solid #c8a96e; border-radius: 0 10px 10px 0; padding: 16px 20px; margin-bottom: 28px; }\n    .summary-box p { font-size: 14px; color: #3a3835; line-height: 1.7; }\n\n    .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }\n    .results-table thead tr { background: #f4f4f0; }\n    .results-table th { padding: 10px 12px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a9890; font-weight: 600; }\n    .results-table td { padding: 11px 12px; border-bottom: 1px solid #f0ede8; color: #3a3835; vertical-align: middle; }\n    .results-table tr:last-child td { border-bottom: none; }\n\n    .badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; }\n    .badge.correct { background: #eaf3de; color: #3b6d11; }\n    .badge.wrong { background: #faece7; color: #993c1d; }\n\n    .footer { background: #f9f7f2; padding: 24px 32px; text-align: center; border-top: 1px solid #eeebe4; }\n    .footer p { font-size: 13px; color: #9a9890; line-height: 1.6; }\n    .footer strong { color: #5a5855; }\n  </style>\n</head>\n<body>\n  <div class=\"wrapper\">\n    <div class=\"card\">\n\n      <!-- Header -->\n      <div class=\"header\">\n        <div class=\"header-badge\">Exam Results</div>\n        <h1>Your Results Are Ready</h1>\n        <p>Here's a detailed breakdown of your performance</p>\n      </div>\n\n      <!-- Score Banner -->\n      <div class=\"score-banner\">\n        <div class=\"score-number\">\n          {{ $json.marks_scored }}<span>/{{ $json.total_marks }}</span>\n        </div>\n        <div class=\"score-pct\">{{ $json.score_percentage }}%</div>\n      </div>\n\n      <!-- Metrics Row -->\n      <div class=\"metrics\">\n        <div class=\"metric\">\n          <div class=\"metric-value\">{{ $json.total_questions_attempted }}</div>\n          <div class=\"metric-label\">Attempted</div>\n        </div>\n        <div class=\"metric\">\n          <div class=\"metric-value green\">{{ $json.correct }}</div>\n          <div class=\"metric-label\">Correct</div>\n        </div>\n        <div class=\"metric\">\n          <div class=\"metric-value red\">{{ $json.wrong }}</div>\n          <div class=\"metric-label\">Wrong</div>\n        </div>\n      </div>\n\n      <!-- Body -->\n      <div class=\"body\">\n\n        <!-- Performance Summary -->\n        <div class=\"section-title\">Performance Summary</div>\n        <div class=\"summary-box\">\n          <p>{{ $json.performance_summary }}</p>\n        </div>\n\n        <!-- Question Breakdown -->\n        <div class=\"section-title\">Question Breakdown</div>\n        <table class=\"results-table\">\n          <thead>\n            <tr>\n              <th>Q No.</th>\n              <th>Your Answer</th>\n              <th>Correct Answer</th>\n              <th>Marks</th>\n              <th>Result</th>\n            </tr>\n          </thead>\n          <tbody>\n            {{ $json.results.map(q => `\n              <tr>\n                <td><strong>Q${q.question_number}</strong></td>\n                <td>${q.student_answer}</td>\n                <td>${q.correct_answer}</td>\n                <td>${q.marks_awarded}</td>\n                <td><span class=\"badge ${q.is_correct ? 'correct' : 'wrong'}\">${q.is_correct ? 'Correct' : 'Wrong'}</span></td>\n              </tr>\n            `).join('') }}\n          </tbody>\n        </table>\n\n      </div>\n\n      <!-- Footer -->\n      <div class=\"footer\">\n        <p>This result was automatically generated by the <strong>AI Exam Grader</strong>.<br>\n        Keep practicing and you'll keep improving. Good luck!</p>\n      </div>\n\n    </div>\n  </div>\n</body>\n</html>",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -112,
-        -736
+        416,
+        80
       ],
       "id": "5c20bb34-f548-4412-bc27-4b2fd5ae1de3",
       "name": "Send a message",
       "webhookId": "88459c5f-173a-4abe-b629-ac3b7991f6a1",
       "credentials": {
-        "googleApi": {
-          "id": "WINSsbym6OujEFNS",
-          "name": "Google Service Account account"
+        "gmailOAuth2": {
+          "id": "ec57bAeyMzhK0n0L",
+          "name": "Gmail account"
         }
       }
     },
@@ -225,6 +226,19 @@
           "name": "GitHub account"
         }
       }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        160,
+        288
+      ],
+      "id": "b7edb920-ec5f-4947-84c6-2efdaf1f2f8f",
+      "name": "AI Agent Tool"
     }
   ],
   "pinData": {},
@@ -285,6 +299,11 @@
             "node": "Respond to Webhook",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -320,6 +339,17 @@
           }
         ]
       ]
+    },
+    "AI Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -327,7 +357,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "d65e7f9e-c380-4867-bc8a-31ba6cebe5bf",
+  "versionId": "de35780b-d901-4398-85e3-35fd56a253d2",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c205de7c87c88039cc72d13a16655b4fc021421874861de867b10335494906d4"
